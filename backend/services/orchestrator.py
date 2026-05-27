@@ -8,7 +8,6 @@ The FastAPI route serialises each dict to a JSON line (NDJSON).
 """
 from __future__ import annotations
 
-import traceback
 from typing import AsyncGenerator
 
 from services import gitlab_client as gl
@@ -27,6 +26,8 @@ async def run_triage(project_id: str, branch: str) -> AsyncGenerator[StepDict, N
     Full 6-step triage pipeline for a GitLab project.
     Yields one NDJSON-ready dict per agent step.
     """
+
+    pipeline_obj = None
 
     # ── Step 1: Detect latest failed pipeline ────────────────────────────────
     yield _step("detect_pipeline", f"Scanning for failed pipelines on '{branch}'...", "running")
@@ -96,7 +97,7 @@ async def run_triage(project_id: str, branch: str) -> AsyncGenerator[StepDict, N
             return
     else:
         yield _step("read_logs", "Skipping job logs (no failed job). Using pipeline failure context.", "done")
-        yaml_errors = pipeline_obj.get("yaml_errors") if 'pipeline_obj' in locals() else None
+        yaml_errors = pipeline_obj.get("yaml_errors") if pipeline_obj else None
         if yaml_errors:
             log_tail = f"YAML Error:\n{yaml_errors}"
         else:
