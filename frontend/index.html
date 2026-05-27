@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pipelinedoc — GitLab Pipeline Triage Agent</title>
+  <meta name="description" content="AI-powered GitLab CI/CD pipeline triage agent. Detects failures, reads logs, traces commits, and generates root-cause diagnoses via Gemini." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="scanline"></div>
+
+  <header class="site-header">
+    <div class="logo-block">
+      <span class="logo-prefix">$</span>
+      <span class="logo-name">pipelinedoc</span>
+      <span class="logo-version">v1.0</span>
+    </div>
+    <p class="tagline">GitLab CI/CD Pipeline Triage Agent · Powered by Gemini + MCP</p>
+  </header>
+
+  <main class="main-content">
+
+    <!-- Input panel -->
+    <section class="input-panel" aria-label="Triage configuration">
+      <div class="input-row">
+        <label for="project-id" class="field-label">
+          <span class="prompt-symbol">&gt;</span> GitLab Project
+          <span class="hint">(e.g. mygroup/myrepo or numeric ID)</span>
+        </label>
+        <input
+          type="text"
+          id="project-id"
+          class="terminal-input"
+          placeholder="mygroup/myrepo"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <div class="input-row">
+        <label for="branch-name" class="field-label">
+          <span class="prompt-symbol">&gt;</span> Branch
+        </label>
+        <input
+          type="text"
+          id="branch-name"
+          class="terminal-input"
+          placeholder="main"
+          value="main"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <div class="button-row">
+        <button id="run-btn" class="run-button" onclick="runTriage()">
+          <span id="btn-text">[ RUN TRIAGE ]</span>
+        </button>
+        <button class="clear-button" onclick="clearOutput()">[ CLEAR ]</button>
+      </div>
+    </section>
+
+    <!-- Terminal output pane -->
+    <section class="terminal-section" aria-label="Triage output">
+      <div class="terminal-header">
+        <span class="terminal-dot dot-red"></span>
+        <span class="terminal-dot dot-yellow"></span>
+        <span class="terminal-dot dot-green"></span>
+        <span class="terminal-title">pipelinedoc — triage output</span>
+      </div>
+
+      <div class="terminal-body" id="terminal-output" role="log" aria-live="polite">
+        <div class="welcome-line">
+          <span class="acc">pipelinedoc</span> ready. Enter a GitLab project and run triage.
+        </div>
+        <div class="welcome-line dim">
+          All GitLab data is fetched via MCP · Analysis by Gemini 2.0 Flash
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <span>pipelinedoc · Built with FastAPI + MCP + Gemini</span>
+    <span class="footer-sep">·</span>
+    <a href="https://github.com" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
