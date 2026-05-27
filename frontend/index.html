@@ -7,132 +7,111 @@
   <meta name="description" content="AI-powered GitLab CI/CD pipeline triage agent. Detects failures, reads logs, traces commits, and generates root-cause diagnoses via Gemini." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <div class="bg-grid" aria-hidden="true"></div>
-  <div class="bg-glow" aria-hidden="true"></div>
-
+  <!-- ── Header ──────────────────────────────────────────── -->
   <header class="site-header">
-    <div class="header-inner">
-      <div class="logo-block">
-        <div class="logo-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="1" y="1" width="20" height="20" rx="5" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M6 8l4 4-4 4M12 16h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <span class="logo-name">pipelinedoc</span>
-        <span class="logo-badge">v1.0</span>
-      </div>
-      <p class="tagline">GitLab CI/CD Triage Agent &nbsp;·&nbsp; Gemini + MCP</p>
+    <div class="logo-block">
+      <svg class="logo-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="16" height="16" rx="4" stroke="#00e676" stroke-width="1.5"/>
+        <path d="M5 6.5l3.5 3L5 12.5M10 12.5h3" stroke="#00e676" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="logo-name">pipelinedoc</span>
+      <span class="logo-sep">/</span>
+      <span class="logo-sub">triage agent</span>
+    </div>
+    <div class="header-right">
+      <span class="header-pill">Gemini 2.0 Flash</span>
+      <span class="header-pill">GitLab MCP</span>
     </div>
   </header>
 
-  <main class="main-content">
+  <!-- ── App Shell ────────────────────────────────────────── -->
+  <div class="app-shell">
 
-    <!-- Input panel -->
-    <section class="input-panel" aria-label="Triage configuration">
-      <div class="panel-title">
-        <span class="panel-title-dot"></span>
-        Configure Triage
-      </div>
+    <!-- Left sidebar: inputs -->
+    <aside class="sidebar" aria-label="Triage configuration">
 
-      <div class="input-grid">
-        <div class="input-group">
-          <label for="project-id" class="field-label">
-            <span class="field-icon">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3h10M1 6h7M1 9h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-            </span>
-            GitLab Project
-            <span class="field-hint">group/repo or numeric ID</span>
-          </label>
-          <div class="input-wrap">
-            <span class="input-prefix">/</span>
-            <input
-              type="text"
-              id="project-id"
-              class="terminal-input"
-              placeholder="mygroup/myrepo"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
+      <div class="sidebar-section">
+        <p class="section-label">CONFIGURATION</p>
+
+        <div class="field-group">
+          <label for="project-id" class="field-label">GitLab Project</label>
+          <input
+            type="text"
+            id="project-id"
+            class="field-input"
+            placeholder="group/repo or numeric ID"
+            autocomplete="off"
+            spellcheck="false"
+          />
         </div>
 
-        <div class="input-group">
-          <label for="branch-name" class="field-label">
-            <span class="field-icon">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="3" cy="3" r="1.5" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="9" r="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M3 4.5V7a2 2 0 002 2h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-            </span>
-            Branch
-          </label>
-          <div class="input-wrap">
-            <span class="input-prefix">#</span>
-            <input
-              type="text"
-              id="branch-name"
-              class="terminal-input"
-              placeholder="main"
-              value="main"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
+        <div class="field-group">
+          <label for="branch-name" class="field-label">Branch</label>
+          <input
+            type="text"
+            id="branch-name"
+            class="field-input"
+            placeholder="main"
+            value="main"
+            autocomplete="off"
+            spellcheck="false"
+          />
         </div>
       </div>
 
-      <div class="button-row">
-        <button id="run-btn" class="run-button" onclick="runTriage()">
-          <span class="btn-icon" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="currentColor"/></svg>
-          </span>
+      <div class="sidebar-section">
+        <button id="run-btn" class="run-btn" onclick="runTriage()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2.5 1.5l8 4.5-8 4.5V1.5z" fill="currentColor"/>
+          </svg>
           <span id="btn-text">Run Triage</span>
         </button>
-        <button class="clear-button" onclick="clearOutput()">
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 2l9 9M11 2L2 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          Clear
-        </button>
+        <button class="clear-btn" onclick="clearOutput()">Clear Output</button>
       </div>
-    </section>
 
-    <!-- Terminal output pane -->
-    <section class="terminal-section" aria-label="Triage output">
-      <div class="terminal-header">
-        <div class="terminal-dots">
-          <span class="terminal-dot dot-red"></span>
-          <span class="terminal-dot dot-yellow"></span>
-          <span class="terminal-dot dot-green"></span>
+      <div class="sidebar-section sidebar-info">
+        <p class="info-item">
+          <span class="info-dot info-dot--green"></span>
+          GitLab data via MCP
+        </p>
+        <p class="info-item">
+          <span class="info-dot info-dot--blue"></span>
+          Analysis by Gemini
+        </p>
+      </div>
+
+    </aside>
+
+    <!-- Right: terminal output -->
+    <main class="terminal-pane" aria-label="Triage output">
+
+      <div class="terminal-topbar">
+        <div class="terminal-dots" aria-hidden="true">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
         </div>
-        <span class="terminal-title">triage output</span>
-        <div class="terminal-header-right">
-          <span class="terminal-status-badge" id="status-badge">IDLE</span>
-        </div>
+        <span class="terminal-label">triage output</span>
+        <span class="terminal-status" id="status-badge">IDLE</span>
       </div>
 
       <div class="terminal-body" id="terminal-output" role="log" aria-live="polite">
-        <div class="welcome-line">
-          <span class="acc">pipelinedoc</span> ready. Enter a GitLab project and run triage.
+        <div class="t-welcome">
+          <span class="t-acc">pipelinedoc</span> ready. Enter a GitLab project and run triage.
         </div>
-        <div class="welcome-line dim">
-          All GitLab data is fetched via MCP &nbsp;·&nbsp; Analysis by Gemini 2.0 Flash
+        <div class="t-dim">
+          All GitLab data is fetched via MCP · Analysis by Gemini 2.0 Flash
         </div>
       </div>
-    </section>
 
-  </main>
+    </main>
 
-  <footer class="site-footer">
-    <div class="footer-inner">
-      <span>Built with <span class="acc">FastAPI</span> + <span class="acc">MCP</span> + <span class="acc">Gemini</span></span>
-      <a href="https://github.com/mew228/pipelinedoc" target="_blank" rel="noopener" class="footer-link" id="footer-github-link">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
-    </div>
-  </footer>
+  </div><!-- /.app-shell -->
 
   <script src="app.js"></script>
 </body>

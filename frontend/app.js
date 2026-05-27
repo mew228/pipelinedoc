@@ -222,9 +222,9 @@ async function runTriage() {
   out.textContent = "";
 
   const header = document.createElement("div");
-  header.className = "welcome-line";
+  header.className = "t-welcome";
   const acc = document.createElement("span");
-  acc.className = "acc";
+  acc.className = "t-acc";
   acc.textContent = "$";
   header.appendChild(acc);
   header.appendChild(document.createTextNode(
@@ -305,11 +305,12 @@ async function runTriage() {
   } finally {
     appendSep();
     const cursor = document.createElement("div");
-    cursor.className = "welcome-line dim";
+    cursor.className = "t-dim";
     cursor.textContent = "$ _";
     getOutput().appendChild(cursor);
 
     isRunning = false;
+    setStatusBadge("idle");
     btn.disabled = false;
     document.getElementById("btn-text").textContent = "Run Triage";
     scrollBottom();
@@ -326,18 +327,19 @@ function clearOutput() {
   out.textContent = "";
 
   const line1 = document.createElement("div");
-  line1.className = "welcome-line";
+  line1.className = "t-welcome";
   const acc = document.createElement("span");
-  acc.className = "acc";
+  acc.className = "t-acc";
   acc.textContent = "pipelinedoc";
   line1.appendChild(acc);
   line1.appendChild(document.createTextNode(" ready. Enter a GitLab project and run triage."));
   out.appendChild(line1);
 
   const line2 = document.createElement("div");
-  line2.className = "welcome-line dim";
+  line2.className = "t-dim";
   line2.textContent = "All GitLab data is fetched via MCP · Analysis by Gemini 2.0 Flash";
   out.appendChild(line2);
+  setStatusBadge("idle");
 }
 
 // ── Keyboard shortcut: Enter in inputs ──────────────────────────────────────
