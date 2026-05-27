@@ -11,7 +11,7 @@
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
-const API_BASE_URL = "https://pipelinedoc.onrender.com"; // ← Replace with Cloud Run URL after deploy
+const API_BASE_URL = "https://mew228-pipelinedoc.hf.space"; // ← Replace with Cloud Run URL after deploy
 
 // ── Step display metadata ────────────────────────────────────────────────────
 
