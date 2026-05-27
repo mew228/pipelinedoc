@@ -34,6 +34,16 @@ const ALLOWED_STATUSES = new Set(["running", "done", "error"]);
 
 let isRunning = false;
 
+// ── Status badge ─────────────────────────────────────────────────────────────
+
+function setStatusBadge(state) {
+  const badge = document.getElementById("status-badge");
+  if (!badge) return;
+  const STATES = { idle: "IDLE", running: "RUNNING", done: "DONE", error: "ERROR" };
+  badge.textContent = STATES[state] ?? "IDLE";
+  badge.className = "terminal-status-badge" + (state !== "idle" ? " " + state : "");
+}
+
 // Map from step ID → DOM element (null-prototype to prevent prototype pollution)
 const stepElements = Object.create(null);
 
@@ -202,9 +212,10 @@ async function runTriage() {
 
   // Update UI state
   isRunning = true;
+  setStatusBadge("running");
   const btn = document.getElementById("run-btn");
   btn.disabled = true;
-  document.getElementById("btn-text").textContent = "[ RUNNING... ]";
+  document.getElementById("btn-text").textContent = "Running…";
 
   // Clear old output and print header using DOM APIs
   const out = getOutput();
@@ -284,7 +295,10 @@ async function runTriage() {
       }
     }
 
+    setStatusBadge("done");
+
   } catch (err) {
+    setStatusBadge("error");
     appendSep();
     appendLine(`Connection error: ${err.message}`, "step-content status-error");
     appendLine("Is the backend running? Check API_BASE_URL in app.js.", "welcome-line dim");
@@ -297,7 +311,7 @@ async function runTriage() {
 
     isRunning = false;
     btn.disabled = false;
-    document.getElementById("btn-text").textContent = "[ RUN TRIAGE ]";
+    document.getElementById("btn-text").textContent = "Run Triage";
     scrollBottom();
   }
 }
