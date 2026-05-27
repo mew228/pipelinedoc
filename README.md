@@ -1,3 +1,12 @@
+---
+title: Pipelinedoc
+emoji: 🚀
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+---
+
 # pipelinedoc
 
 **GitLab CI/CD Pipeline Triage Agent** — detects failed pipelines, reads job logs via MCP, traces the triggering commit, performs root-cause analysis with Gemini, and creates a GitLab issue + MR comment.
