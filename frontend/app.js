@@ -6,16 +6,17 @@
  *
  * Each NDJSON line: { "step": string, "content": string, "status": "running"|"done"|"error" }
  *
- * Update API_BASE_URL to your Cloud Run URL before deploying to Firebase Hosting.
+ * Update API_BASE_URL to your Hugging Face Space URL before deploying to Firebase Hosting.
  */
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
-const API_BASE_URL = "https://mew228-pipelinedoc.hf.space"; // ← Replace with Cloud Run URL after deploy
+const API_BASE_URL = "https://mew228-pipelinedoc.hf.space";
 
 // ── Step display metadata ────────────────────────────────────────────────────
+// Use Object.create(null) to prevent prototype-pollution via server-controlled keys.
 
-const STEP_META = {
+const STEP_META = Object.assign(Object.create(null), {
   detect_pipeline: { label: "DETECT",   icon: "🔍" },
   list_jobs:       { label: "JOBS",     icon: "📋" },
   read_logs:       { label: "LOGS",     icon: "📄" },
@@ -24,11 +25,17 @@ const STEP_META = {
   create_issue:    { label: "ISSUE",    icon: "🐛" },
   comment_mr:      { label: "MR NOTE",  icon: "💬" },
   triage_complete: { label: "DONE",     icon: "✅" },
-};
+});
+
+// Allow-listed status values; anything else falls back to a plain span.
+const ALLOWED_STATUSES = new Set(["running", "done", "error"]);
 
 // ── State ────────────────────────────────────────────────────────────────────
 
 let isRunning = false;
+
+// Map from step ID → DOM element (null-prototype to prevent prototype pollution)
+const stepElements = Object.create(null);
 
 // ── DOM helpers ──────────────────────────────────────────────────────────────
 
@@ -41,92 +48,140 @@ function scrollBottom() {
   el.scrollTop = el.scrollHeight;
 }
 
-function appendRaw(html) {
-  const el = getOutput();
-  el.insertAdjacentHTML("beforeend", html);
+/**
+ * appendLine — creates a <div> with textContent (never innerHTML).
+ * cls must only be callee-controlled strings (not user input).
+ */
+function appendLine(text, cls = "") {
+  const div = document.createElement("div");
+  div.className = "terminal-line" + (cls ? " " + cls : "");
+  div.textContent = text;
+  getOutput().appendChild(div);
   scrollBottom();
 }
 
 function appendSep() {
-  appendRaw(`<div class="sep-line">──────────────────────────────────────────────────────</div>`);
+  const div = document.createElement("div");
+  div.className = "sep-line";
+  div.textContent = "──────────────────────────────────────────────────────";
+  getOutput().appendChild(div);
+  scrollBottom();
 }
 
-function appendLine(text, cls = "") {
-  const safe = escapeHtml(text);
-  appendRaw(`<div class="terminal-line ${cls}">${safe}</div>`);
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function severityBadge(content) {
-  const m = content.match(/\[(CRITICAL|HIGH|MEDIUM|LOW)\]/i);
-  if (!m) return escapeHtml(content);
-  const sev = m[1].toLowerCase();
-  return escapeHtml(content).replace(
-    `[${m[1]}]`,
-    `<span class="badge badge-${sev}">[${m[1]}]</span>`
-  );
+/** Build a badge <span> for severity levels found in Gemini output. */
+function severityBadge(line) {
+  const m = line.match(/\[(CRITICAL|HIGH|MEDIUM|LOW)\]/i);
+  if (!m) {
+    const span = document.createElement("span");
+    span.textContent = line;
+    return span;
+  }
+  const sev = m[1].toLowerCase(); // always one of four safe literals
+  const frag = document.createDocumentFragment();
+  const parts = line.split(m[0]); // at most 2 parts
+  frag.appendChild(document.createTextNode(parts[0]));
+  const badge = document.createElement("span");
+  badge.className = "badge badge-" + sev;
+  badge.textContent = m[0];
+  frag.appendChild(badge);
+  if (parts[1]) frag.appendChild(document.createTextNode(parts[1]));
+  return frag;
 }
 
 // ── Step renderer ────────────────────────────────────────────────────────────
 
-/** Map from step ID → DOM element ID for in-place update of running steps */
-const stepElementIds = {};
+/**
+ * Build the status icon element using the DOM — never innerHTML.
+ * status is validated against the allow-list before use.
+ */
+function buildIconEl(safeStatus) {
+  const span = document.createElement("span");
+  if (safeStatus === "running") {
+    span.className = "step-icon running spinner";
+  } else if (safeStatus === "done") {
+    span.className = "step-icon done";
+    span.textContent = "✓";
+  } else if (safeStatus === "error") {
+    span.className = "step-icon error";
+    span.textContent = "✗";
+  } else {
+    span.className = "step-icon";
+    span.textContent = "▸";
+  }
+  return span;
+}
 
+/** Build or update a step <div> entirely via DOM APIs. */
 function renderStep(step, content, status) {
-  const meta = STEP_META[step] || { label: step.toUpperCase(), icon: "▸" };
+  // Sanitise server-controlled keys against allow-lists
+  const safeMeta = Object.prototype.hasOwnProperty.call(STEP_META, step)
+    ? STEP_META[step]
+    : { label: step.toUpperCase().slice(0, 32), icon: "▸" };
 
-  const iconMap = {
-    running: `<span class="step-icon running spinner"></span>`,
-    done:    `<span class="step-icon done">✓</span>`,
-    error:   `<span class="step-icon error">✗</span>`,
-  };
-  const icon = iconMap[status] || `<span class="step-icon">▸</span>`;
+  const safeStatus = ALLOWED_STATUSES.has(status) ? status : "running";
 
-  // Format content lines with newline support
-  const contentHtml = content
-    .split("\n")
-    .map((l) => (step === "gemini_analysis" ? severityBadge(l) : escapeHtml(l)))
-    .join("<br/>");
-
-  // If this step already has a DOM element, update it in place
-  const existingId = stepElementIds[step];
-  if (existingId) {
-    const el = document.getElementById(existingId);
-    if (el) {
-      el.className = `step-line status-${status}`;
-      el.innerHTML = `
-        <div class="step-label">
-          ${icon}
-          <span class="step-name">${escapeHtml(meta.label)}</span>
-        </div>
-        <div class="step-content status-${status}">${contentHtml}</div>
-      `;
-      scrollBottom();
-      return;
-    }
+  // Build content node — split on newlines; apply badge only for gemini step.
+  function buildContentNode() {
+    const wrapper = document.createDocumentFragment();
+    const lines = content.split("\n");
+    lines.forEach((line, i) => {
+      if (step === "gemini_analysis") {
+        wrapper.appendChild(severityBadge(line));
+      } else {
+        wrapper.appendChild(document.createTextNode(line));
+      }
+      if (i < lines.length - 1) wrapper.appendChild(document.createElement("br"));
+    });
+    return wrapper;
   }
 
-  // First time we see this step — create a new element
-  const elemId = `step-${step}-${Date.now()}`;
-  stepElementIds[step] = elemId;
+  // If this step already has a DOM element, update it in-place.
+  const existing = Object.prototype.hasOwnProperty.call(stepElements, step)
+    ? stepElements[step]
+    : null;
 
-  const html = `
-    <div id="${elemId}" class="step-line status-${status}">
-      <div class="step-label">
-        ${icon}
-        <span class="step-name">${escapeHtml(meta.label)}</span>
-      </div>
-      <div class="step-content status-${status}">${contentHtml}</div>
-    </div>
-  `;
-  appendRaw(html);
+  if (existing && existing.isConnected) {
+    existing.className = "step-line status-" + safeStatus;
+
+    const labelDiv = existing.querySelector(".step-label");
+    const contentDiv = existing.querySelector(".step-content");
+
+    // Replace icon
+    const oldIcon = labelDiv.querySelector(".step-icon");
+    labelDiv.replaceChild(buildIconEl(safeStatus), oldIcon);
+
+    // Replace content
+    contentDiv.className = "step-content status-" + safeStatus;
+    contentDiv.textContent = "";
+    contentDiv.appendChild(buildContentNode());
+
+    scrollBottom();
+    return;
+  }
+
+  // First occurrence — create the full element.
+  const wrapper = document.createElement("div");
+  wrapper.className = "step-line status-" + safeStatus;
+
+  const labelDiv = document.createElement("div");
+  labelDiv.className = "step-label";
+  labelDiv.appendChild(buildIconEl(safeStatus));
+
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "step-name";
+  nameSpan.textContent = safeMeta.label;
+  labelDiv.appendChild(nameSpan);
+
+  const contentDiv = document.createElement("div");
+  contentDiv.className = "step-content status-" + safeStatus;
+  contentDiv.appendChild(buildContentNode());
+
+  wrapper.appendChild(labelDiv);
+  wrapper.appendChild(contentDiv);
+
+  stepElements[step] = wrapper;
+  getOutput().appendChild(wrapper);
+  scrollBottom();
 }
 
 // ── Main triage runner ───────────────────────────────────────────────────────
@@ -143,7 +198,7 @@ async function runTriage() {
   }
 
   // Reset step tracking
-  Object.keys(stepElementIds).forEach((k) => delete stepElementIds[k]);
+  for (const k of Object.keys(stepElements)) delete stepElements[k];
 
   // Update UI state
   isRunning = true;
@@ -151,9 +206,20 @@ async function runTriage() {
   btn.disabled = true;
   document.getElementById("btn-text").textContent = "[ RUNNING... ]";
 
-  // Clear old output and print header
-  getOutput().innerHTML = "";
-  appendRaw(`<div class="welcome-line"><span class="acc">$</span> pipelinedoc triage --project "${escapeHtml(projectId)}" --branch "${escapeHtml(branch)}"</div>`);
+  // Clear old output and print header using DOM APIs
+  const out = getOutput();
+  out.textContent = "";
+
+  const header = document.createElement("div");
+  header.className = "welcome-line";
+  const acc = document.createElement("span");
+  acc.className = "acc";
+  acc.textContent = "$";
+  header.appendChild(acc);
+  header.appendChild(document.createTextNode(
+    ` pipelinedoc triage --project "${projectId}" --branch "${branch}"`
+  ));
+  out.appendChild(header);
   appendSep();
 
   try {
@@ -196,7 +262,11 @@ async function runTriage() {
           continue;
         }
 
-        renderStep(parsed.step, parsed.content, parsed.status);
+        renderStep(
+          typeof parsed.step    === "string" ? parsed.step    : "",
+          typeof parsed.content === "string" ? parsed.content : "",
+          typeof parsed.status  === "string" ? parsed.status  : "running"
+        );
       }
     }
 
@@ -204,7 +274,11 @@ async function runTriage() {
     if (buffer.trim()) {
       try {
         const parsed = JSON.parse(buffer.trim());
-        renderStep(parsed.step, parsed.content, parsed.status);
+        renderStep(
+          typeof parsed.step    === "string" ? parsed.step    : "",
+          typeof parsed.content === "string" ? parsed.content : "",
+          typeof parsed.status  === "string" ? parsed.status  : "running"
+        );
       } catch {
         // Ignore incomplete final line
       }
@@ -216,7 +290,11 @@ async function runTriage() {
     appendLine("Is the backend running? Check API_BASE_URL in app.js.", "welcome-line dim");
   } finally {
     appendSep();
-    appendRaw(`<div class="welcome-line dim">$ _</div>`);
+    const cursor = document.createElement("div");
+    cursor.className = "welcome-line dim";
+    cursor.textContent = "$ _";
+    getOutput().appendChild(cursor);
+
     isRunning = false;
     btn.disabled = false;
     document.getElementById("btn-text").textContent = "[ RUN TRIAGE ]";
@@ -228,15 +306,24 @@ async function runTriage() {
 
 function clearOutput() {
   if (isRunning) return;
-  Object.keys(stepElementIds).forEach((k) => delete stepElementIds[k]);
-  getOutput().innerHTML = `
-    <div class="welcome-line">
-      <span class="acc">pipelinedoc</span> ready. Enter a GitLab project and run triage.
-    </div>
-    <div class="welcome-line dim">
-      All GitLab data is fetched via MCP · Analysis by Gemini 2.0 Flash
-    </div>
-  `;
+  for (const k of Object.keys(stepElements)) delete stepElements[k];
+
+  const out = getOutput();
+  out.textContent = "";
+
+  const line1 = document.createElement("div");
+  line1.className = "welcome-line";
+  const acc = document.createElement("span");
+  acc.className = "acc";
+  acc.textContent = "pipelinedoc";
+  line1.appendChild(acc);
+  line1.appendChild(document.createTextNode(" ready. Enter a GitLab project and run triage."));
+  out.appendChild(line1);
+
+  const line2 = document.createElement("div");
+  line2.className = "welcome-line dim";
+  line2.textContent = "All GitLab data is fetched via MCP · Analysis by Gemini 2.0 Flash";
+  out.appendChild(line2);
 }
 
 // ── Keyboard shortcut: Enter in inputs ──────────────────────────────────────
