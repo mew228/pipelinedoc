@@ -15,10 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source
 COPY backend/ .
 
-# Cloud Run expects 8080
-EXPOSE 8080
+# Hugging Face Spaces expects 7860 by default
+EXPOSE 7860
 
 # Pre-warm npx cache so first request doesn't pay cold-start install cost
 RUN npx -y gitlab-mcp --help || true
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
